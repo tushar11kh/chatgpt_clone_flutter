@@ -67,6 +67,7 @@ flutter:
   assets:
     - assets/chatgpt_dark.png
     - assets/chatgpt_light.png
+    - assets/wave.jpg
   
 
   # An image asset can refer to one or more resolution-specific "variants", see

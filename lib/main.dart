@@ -1,3 +1,4 @@
+import 'package:chatgpt_clone/screens/home_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:chatgpt_clone/screens/splash_screen.dart';
 
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ChatGPT Clone',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.light, // Auto switch light/dark
+      themeMode: ThemeMode.dark, // Auto switch light/dark
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       home: const SplashScreen(),
@@ -24,13 +25,3 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("Welcome to ChatGPT Clone")),
-    );
-  }
-}
