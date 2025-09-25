@@ -10,6 +10,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _controller = TextEditingController();
   final List<ChatMessage> _messages = [];
+  final FocusNode _searchFocus = FocusNode();
+  bool _isFocused = false;
 
   void _sendMessage(String text) {
     if (text.trim().isEmpty) return;
@@ -18,6 +20,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _controller.clear();
     setState(() {}); // refresh to reset icon back to wave
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocus.addListener(() {
+      setState(() {
+        _isFocused = _searchFocus.hasFocus;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _searchFocus.dispose();
+    super.dispose();
   }
 
   @override
@@ -48,12 +67,65 @@ class _HomeScreenState extends State<HomeScreen> {
       drawer: Drawer(
         backgroundColor: bgColor,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(12, 60, 12, 22),
+          padding: const EdgeInsets.fromLTRB(12, 60, 12, 22),
           children: [
-            Text('Settings', style: TextStyle(color: textColor, fontSize: 20)),
+            TextField(
+              controller: _controller,
+              focusNode: _searchFocus,
+              cursorColor: Colors.black,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: "Search",
+                hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: brightness == Brightness.dark
+                    ? Colors.grey[850]
+                    : Colors.grey[300],
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                prefixIcon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: (_isFocused || _controller.text.isNotEmpty)
+                      ? IconButton(
+                          key: const ValueKey('arrow'),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: textColor,
+                            size: 32,
+                          ),
+                          onPressed: () {
+                            _searchFocus.unfocus();
+                            _controller.clear();
+                            setState(() {}); // force icon update
+                          },
+                        )
+                      : IconButton(
+                          key: const ValueKey('search'),
+                          icon: Icon(Icons.search, size: 32),
+                          onPressed: () {
+                            _searchFocus.requestFocus();
+                          },
+                        ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
+
+      onDrawerChanged: (isOpened) {
+        if (!isOpened) {
+          // Drawer closed, reset search field
+          _searchFocus.unfocus();
+          _controller.clear();
+          setState(() {});
+        }
+      },
       body: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 22),
         child: Column(
@@ -93,9 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: Text(
                               msg.text,
-                              style: TextStyle(
-                                color: textColor,
-                              ),
+                              style: TextStyle(color: textColor),
                             ),
                           ),
                         );
@@ -197,6 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                       ),
                     ),
+                    cursorColor: Colors.black,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: _sendMessage,
                   ),
