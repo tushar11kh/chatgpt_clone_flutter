@@ -24,21 +24,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final bgColor = brightness == Brightness.dark ? Colors.black : Colors.white;
-    final textColor =
-        brightness == Brightness.dark ? Colors.white : Colors.black;
-    final chatBgColor =
-        brightness == Brightness.dark ? Colors.grey[900] : Colors.grey[200];
+    final textColor = brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
+    final chatBgColor = brightness == Brightness.dark
+        ? Colors.grey[900]
+        : Colors.grey[200];
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.menu, color: textColor),
-          onPressed: () {
-            // Handle settings
-          },
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: Icon(Icons.menu, color: textColor),
+            onPressed: () {
+              Scaffold.of(context).openDrawer(); // Handle settings
+            },
+          ),
+        ),
+      ),
+      drawer: Drawer(
+        backgroundColor: bgColor,
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(12, 60, 12, 22),
+          children: [
+            Text('Settings', style: TextStyle(color: textColor, fontSize: 20)),
+          ],
         ),
       ),
       body: Padding(
@@ -47,36 +60,47 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Chat messages
             Expanded(
-              child: ListView.builder(
-                reverse: true,
-                padding: const EdgeInsets.all(12),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[_messages.length - 1 - index];
-                  return Align(
-                    alignment: msg.isUser
-                        ? Alignment.centerRight
-                        : Alignment.centerLeft,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 8,
-                        horizontal: 12,
-                      ),
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: msg.isUser ? Colors.blueAccent : chatBgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+              child: _messages.isEmpty
+                  ? Center(
                       child: Text(
-                        msg.text,
+                        "What can I help with?",
                         style: TextStyle(
-                          color: msg.isUser ? Colors.white : textColor,
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: textColor,
                         ),
                       ),
+                    )
+                  : ListView.builder(
+                      reverse: true,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = _messages[_messages.length - 1 - index];
+                        return Align(
+                          alignment: msg.isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 12,
+                            ),
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            decoration: BoxDecoration(
+                              color: chatBgColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              msg.text,
+                              style: TextStyle(
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
 
             // Input box
@@ -98,67 +122,85 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(width: MediaQuery.sizeOf(context).width * 0.03),
                 Expanded(
-  child: TextField(
-    controller: _controller,
-    style: TextStyle(color: textColor),
-    decoration: InputDecoration(
-      hintText: "Ask anything",
-      hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(24),
-        borderSide: BorderSide.none,
-      ),
-      filled: true,
-      fillColor: brightness == Brightness.dark
-          ? Colors.grey[850]
-          : Colors.grey[300],
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: TextField(
+                    controller: _controller,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
+                      hintText: "Ask anything",
+                      hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: brightness == Brightness.dark
+                          ? Colors.grey[850]
+                          : Colors.grey[300],
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
 
-      // 👇 Place the switcher here
-      suffixIcon: AnimatedSwitcher(
-  duration: const Duration(milliseconds: 300),
-  transitionBuilder: (child, anim) => ScaleTransition(
-    scale: anim,
-    child: child,
-  ),
-  child: _controller.text.isEmpty
-      ? IconButton(
-          key: const ValueKey('wave'),
-          icon: ClipOval(
-            child: Image.asset(
-              'assets/wave.jpg',
-              width: 32,
-              height: 32,
-              fit: BoxFit.cover,
-            ),
-          ),
-          onPressed: () {},
-        )
-      : IconButton(
-  key: const ValueKey('arrow'),
-  icon: CircleAvatar(
-    backgroundColor: Colors.white, // white circular background
-    radius: 16, // matches ~32px total size
-    child: Transform.rotate(
-      angle: -1.57, // rotate 90° upwards
-      child: Icon(
-        Icons.arrow_forward_rounded,
-        color: Colors.black,
-        size: 20, // fits nicely inside the circle
-      ),
-    ),
-  ),
-  onPressed: () => _sendMessage(_controller.text),
-),
-
-),
-
-    ),
-    onChanged: (_) => setState(() {}),
-    onSubmitted: _sendMessage,
-  ),
-),
-
+                      // 👇 Place the switcher here
+                      suffixIcon: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder: (child, anim) =>
+                            ScaleTransition(scale: anim, child: child),
+                        child: _controller.text.isEmpty
+                            ? IconButton(
+                                key: const ValueKey('wave'),
+                                icon: ClipOval(
+                                  child: Image.asset(
+                                    'assets/wave.jpg',
+                                    width: 32,
+                                    height: 32,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text("Voice Chats"),
+                                      content: const Text(
+                                        "Voice chats are unavailable right now.",
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(),
+                                          child: Text(
+                                            "OK",
+                                            style: TextStyle(color: textColor),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              )
+                            : IconButton(
+                                key: const ValueKey('arrow'),
+                                icon: CircleAvatar(
+                                  backgroundColor:
+                                      Colors.white, // white circular background
+                                  radius: 16, // matches ~32px total size
+                                  child: Transform.rotate(
+                                    angle: -1.57, // rotate 90° upwards
+                                    child: Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: Colors.black,
+                                      size: 20, // fits nicely inside the circle
+                                    ),
+                                  ),
+                                ),
+                                onPressed: () => _sendMessage(_controller.text),
+                              ),
+                      ),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: _sendMessage,
+                  ),
+                ),
               ],
             ),
           ],

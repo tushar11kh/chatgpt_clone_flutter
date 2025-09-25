@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'ChatGPT Clone',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.dark, // Auto switch light/dark
+      themeMode: ThemeMode.light, // Auto switch light/dark
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       home: const SplashScreen(),
