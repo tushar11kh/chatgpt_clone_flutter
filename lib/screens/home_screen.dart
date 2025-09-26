@@ -1,4 +1,10 @@
+import 'package:chatgpt_clone/constants.dart';
+import 'package:chatgpt_clone/models/chat_model.dart';
+import 'package:chatgpt_clone/services/api_service.dart';
+import 'package:chatgpt_clone/widgets/theme_dialogue.dart';
 import 'package:flutter/material.dart';
+import 'dart:io'; // For File handling
+import 'package:image_picker/image_picker.dart'; // For image upload
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -8,19 +14,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _controller = TextEditingController();
+  //Variables start
+
+  final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _chatController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
   final List<ChatMessage> _messages = [];
   final FocusNode _searchFocus = FocusNode();
-  bool _isFocused = false;
 
-  void _sendMessage(String text) {
-    if (text.trim().isEmpty) return;
-    setState(() {
-      _messages.add(ChatMessage(text: text, isUser: true));
-    });
-    _controller.clear();
-    setState(() {}); // refresh to reset icon back to wave
-  }
+  bool _isFocused = false;
+  bool _isLoading = false;
+
+  String _selectedModel = 'gpt-3.5-turbo';
+  String? _currentConversationId;
+
+  File? _selectedImage;
+
+  // variables ended
 
   @override
   void initState() {
@@ -30,11 +40,124 @@ class _HomeScreenState extends State<HomeScreen> {
         _isFocused = _searchFocus.hasFocus;
       });
     });
+    _loadPreferences();
+  }
+
+  void _loadPreferences() async {
+    // Load saved model preference
+    // You can use shared_preferences package for this
+  }
+
+  void _sendMessage(String text) async {
+    if (text.trim().isEmpty) return;
+
+    setState(() {
+      _messages.add(
+        ChatMessage(
+          text: text.trim(),
+          isUser: true,
+          timestamp: DateTime.now(),
+          imageUrl: _selectedImage != null ? 'local_image' : null,
+          modelUsed: _selectedModel,
+        ),
+      );
+      _isLoading = true;
+    });
+
+    // Clear image after adding to message
+    final tempImage = _selectedImage;
+    _selectedImage = null;
+    _chatController.clear();
+
+    try {
+      // Send to OpenAI via backend
+      final response = await ApiService.sendMessage(
+        message: text.trim(),
+        model: _selectedModel,
+        history: _messages,
+        imageUrl: tempImage != null ? await _uploadImage(tempImage) : null,
+      );
+
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: response,
+            isUser: false,
+            timestamp: DateTime.now(),
+            modelUsed: _selectedModel,
+          ),
+        );
+        _isLoading = false;
+      });
+
+      // Save conversation
+      await _saveConversation();
+    } catch (e) {
+      setState(() {
+        _messages.add(
+          ChatMessage(
+            text: 'Sorry, I encountered an error. Please try again.',
+            isUser: false,
+            timestamp: DateTime.now(),
+            modelUsed: _selectedModel,
+          ),
+        );
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<String> _uploadImage(File imageFile) async {
+    try {
+      return await ApiService.uploadImage(imageFile);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to upload image: $e')));
+      rethrow;
+    }
+  }
+
+  Future<void> _saveConversation() async {
+    final conversation = Conversation(
+      id:
+          _currentConversationId ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _messages.first.text.length > 30
+          ? '${_messages.first.text.substring(0, 30)}...'
+          : _messages.first.text,
+      createdAt: DateTime.now(),
+      messages: _messages,
+      modelUsed: _selectedModel,
+    );
+
+    await ApiService.saveConversation(conversation);
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _selectedImage = null;
+    });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _searchController.dispose();
     _searchFocus.dispose();
     super.dispose();
   }
@@ -42,13 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
-    final bgColor = brightness == Brightness.dark ? Colors.black : Colors.white;
-    final textColor = brightness == Brightness.dark
-        ? Colors.white
-        : Colors.black;
-    final chatBgColor = brightness == Brightness.dark
-        ? Colors.grey[900]
-        : Colors.grey[200];
+
+    final bgColor = getBackgroundColor(brightness);
+    final textColor = getPrimaryTextColor(brightness);
+    final chatBgColor = getChatBackgroundColor(brightness);
+    final inputBgColor = getInputBackgroundColor(brightness);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -70,9 +191,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(12, 60, 12, 22),
           children: [
             TextField(
-              controller: _controller,
+              controller: _searchController,
               focusNode: _searchFocus,
-              cursorColor: Colors.black,
+              cursorColor: textColor,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: "Search",
@@ -82,15 +203,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: brightness == Brightness.dark
-                    ? Colors.grey[850]
-                    : Colors.grey[300],
+                fillColor: inputBgColor,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 prefixIcon: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   transitionBuilder: (child, anim) =>
                       ScaleTransition(scale: anim, child: child),
-                  child: (_isFocused || _controller.text.isNotEmpty)
+                  child: (_isFocused || _searchController.text.isNotEmpty)
                       ? IconButton(
                           key: const ValueKey('arrow'),
                           icon: Icon(
@@ -100,19 +219,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           onPressed: () {
                             _searchFocus.unfocus();
-                            _controller.clear();
-                            setState(() {}); // force icon update
+                            _searchController.clear();
+                            setState(() {});
                           },
                         )
                       : IconButton(
                           key: const ValueKey('search'),
-                          icon: Icon(Icons.search, size: 32),
+                          icon: Icon(Icons.search, size: 32, color: textColor),
                           onPressed: () {
                             _searchFocus.requestFocus();
                           },
                         ),
                 ),
               ),
+            ),
+            SizedBox(height: MediaQuery.sizeOf(context).height * 0.76),
+            ListTile(
+              leading: Icon(Icons.light_mode, color: textColor),
+              title: Text("Color Scheme", style: TextStyle(color: textColor)),
+              onTap: () {
+                ThemeDialog.show(
+                  context: context,
+                  bgColor: inputBgColor,
+                  textColor: textColor,
+                );
+              },
             ),
           ],
         ),
@@ -122,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!isOpened) {
           // Drawer closed, reset search field
           _searchFocus.unfocus();
-          _controller.clear();
+          _searchController.clear();
           setState(() {});
         }
       },
@@ -179,21 +310,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(24),
-                    color: brightness == Brightness.dark
-                        ? Colors.grey[850]
-                        : Colors.grey[300],
+                    color: inputBgColor,
                   ),
                   child: IconButton(
                     icon: Icon(Icons.insert_photo_outlined, color: textColor),
                     onPressed: () {
-                      // Handle image upload
+                       _pickImage();
                     },
                   ),
                 ),
                 SizedBox(width: MediaQuery.sizeOf(context).width * 0.03),
                 Expanded(
                   child: TextField(
-                    controller: _controller,
+                    controller: _chatController,
                     style: TextStyle(color: textColor),
                     decoration: InputDecoration(
                       hintText: "Ask anything",
@@ -203,9 +332,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: brightness == Brightness.dark
-                          ? Colors.grey[850]
-                          : Colors.grey[300],
+                      fillColor: inputBgColor,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                       ),
@@ -215,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         duration: const Duration(milliseconds: 300),
                         transitionBuilder: (child, anim) =>
                             ScaleTransition(scale: anim, child: child),
-                        child: _controller.text.isEmpty
+                        child: _chatController.text.isEmpty
                             ? IconButton(
                                 key: const ValueKey('wave'),
                                 icon: ClipOval(
@@ -263,11 +390,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                                 ),
-                                onPressed: () => _sendMessage(_controller.text),
+                                onPressed: () =>
+                                    _sendMessage(_chatController.text),
                               ),
                       ),
                     ),
-                    cursorColor: Colors.black,
+                    cursorColor: textColor,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: _sendMessage,
                   ),
@@ -279,10 +407,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
-
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  ChatMessage({required this.text, this.isUser = true});
 }
