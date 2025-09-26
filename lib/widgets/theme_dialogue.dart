@@ -1,6 +1,8 @@
-// lib/widgets/theme_dialog.dart
+import 'package:chatgpt_clone/bloc/theme/theme_state.dart';
 import 'package:flutter/material.dart';
-import 'package:chatgpt_clone/main.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../bloc/theme/theme_bloc.dart';
+import '../bloc/theme/theme_event.dart';
 
 class ThemeDialog {
   static void show({
@@ -8,79 +10,44 @@ class ThemeDialog {
     required Color bgColor,
     required Color textColor,
   }) {
-    ThemeMode currentTheme = MyApp.of(context).themeMode;
-    
+    final themeBloc = BlocProvider.of<ThemeBloc>(context);
+    final currentTheme = themeBloc.state is ThemeInitial 
+        ? (themeBloc.state as ThemeInitial).isDark 
+        : false;
+
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
+      builder: (context) => BlocProvider.value(
+        value: themeBloc,
+        child: AlertDialog(
           backgroundColor: bgColor,
           title: Text(
             "Choose Theme",
-            style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+            style: TextStyle(color: textColor),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildRadioOption(
-                context: context,
-                title: "Light",
-                value: ThemeMode.light,
-                groupValue: currentTheme,
-                bgColor: bgColor,
-                textColor: textColor,
+              ListTile(
+                title: Text("Light Mode", style: TextStyle(color: textColor)),
+                leading: Icon(Icons.light_mode, color: textColor),
+                onTap: () {
+                  themeBloc.add(ChangeTheme(false));
+                  Navigator.of(context).pop();
+                },
               ),
-              _buildRadioOption(
-                context: context,
-                title: "Dark",
-                value: ThemeMode.dark,
-                groupValue: currentTheme,
-                bgColor: bgColor,
-                textColor: textColor,
-              ),
-              _buildRadioOption(
-                context: context,
-                title: "System",
-                value: ThemeMode.system,
-                groupValue: currentTheme,
-                bgColor: bgColor,
-                textColor: textColor,
+              ListTile(
+                title: Text("Dark Mode", style: TextStyle(color: textColor)),
+                leading: Icon(Icons.dark_mode, color: textColor),
+                onTap: () {
+                  themeBloc.add(ChangeTheme(true));
+                  Navigator.of(context).pop();
+                },
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("Cancel", style: TextStyle(color: textColor)),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  static Widget _buildRadioOption({
-    required BuildContext context,
-    required String title,
-    required ThemeMode value,
-    required ThemeMode groupValue,
-    required Color bgColor,
-    required Color textColor,
-  }) {
-    return RadioListTile<ThemeMode>(
-      title: Text(title, style: TextStyle(color: textColor)),
-      value: value,
-      groupValue: groupValue,
-      activeColor: Colors.blue,
-      onChanged: (ThemeMode? newValue) {
-        if (newValue != null) {
-          MyApp.of(context).setTheme(newValue);
-          Navigator.pop(context); // Close dialog
-          Navigator.pop(context); // Close drawer (if called from drawer)
-        }
-      },
+        ),
+      ),
     );
   }
 }

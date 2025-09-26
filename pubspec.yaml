@@ -37,6 +37,11 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   http: ^1.5.0
   image_picker: ^1.2.0
+  equatable: ^2.0.7
+  flutter_bloc: ^9.1.1
+  shared_preferences: ^2.5.3
+  perplexity_dart: ^1.0.5
+  flutter_dotenv: ^6.0.0
 
 flutter_icons:
   android: true
@@ -70,6 +75,7 @@ flutter:
     - assets/chatgpt_dark.png
     - assets/chatgpt_light.png
     - assets/wave.jpg
+    - .env
   
 
   # An image asset can refer to one or more resolution-specific "variants", see
