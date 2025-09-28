@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 class ChatBubble extends StatelessWidget {
   final String text;
   final bool isUser;
-  final String? imageUrl;
+  final String? imageUrl;         // legacy single image
+  final List<String>? images;     // multiple images from backend
   final bool isLoading;
 
   const ChatBubble({
@@ -12,6 +13,7 @@ class ChatBubble extends StatelessWidget {
     required this.text,
     required this.isUser,
     this.imageUrl,
+    this.images,
     this.isLoading = false,
   });
 
@@ -31,20 +33,41 @@ class ChatBubble extends StatelessWidget {
         child: Column(
           crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
-            if (imageUrl != null && imageUrl != 'local_image') ...[
-              Container(
-                width: 200,
-                height: 150,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  image: DecorationImage(
-                    image: NetworkImage(imageUrl!),
-                    fit: BoxFit.cover,
+            // Render multiple images if present
+            if ((images != null && images!.isNotEmpty) || (imageUrl != null && imageUrl != 'local_image')) 
+              ...[
+                if (images != null && images!.isNotEmpty)
+                  ...images!.map(
+                    (url) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        width: 200,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: NetworkImage(url),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
+                if (imageUrl != null && imageUrl != 'local_image')
+                  Container(
+                    width: 200,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      image: DecorationImage(
+                        image: NetworkImage(imageUrl!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+              ],
+            // Chat text bubble
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               decoration: BoxDecoration(

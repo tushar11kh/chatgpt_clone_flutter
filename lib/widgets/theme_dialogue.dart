@@ -1,4 +1,3 @@
-import 'package:chatgpt_clone/bloc/theme/theme_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/theme/theme_bloc.dart';
@@ -11,9 +10,6 @@ class ThemeDialog {
     required Color textColor,
   }) {
     final themeBloc = BlocProvider.of<ThemeBloc>(context);
-    final currentTheme = themeBloc.state is ThemeInitial 
-        ? (themeBloc.state as ThemeInitial).isDark 
-        : false;
 
     showDialog(
       context: context,

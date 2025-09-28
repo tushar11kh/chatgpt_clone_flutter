@@ -4,6 +4,8 @@ import 'package:chatgpt_clone/bloc/chat/chat_state.dart';
 import 'package:chatgpt_clone/bloc/model/model_bloc.dart';
 import 'package:chatgpt_clone/bloc/model/model_event.dart';
 import 'package:chatgpt_clone/bloc/model/model_state.dart';
+import 'package:chatgpt_clone/models/chat_model.dart';
+import 'package:chatgpt_clone/services/backend_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:io';
@@ -375,78 +377,265 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildDrawer(Color bgColor, Color textColor, Color inputBgColor) {
     return Drawer(
       backgroundColor: bgColor,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 60, 12, 22),
+      child: Column(
         children: [
-          TextField(
-            controller: _searchController,
-            focusNode: _searchFocus,
-            cursorColor: textColor,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: "Search",
-              hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
-              ),
-              filled: true,
-              fillColor: inputBgColor,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-              prefixIcon: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
-                child: (_isFocused || _searchController.text.isNotEmpty)
-                    ? IconButton(
-                        key: const ValueKey('arrow'),
-                        icon: Icon(
-                          Icons.arrow_back,
-                          color: textColor,
-                          size: 32,
+          // Search field
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 60, 12, 12),
+            child: TextField(
+              controller: _searchController,
+              focusNode: _searchFocus,
+              cursorColor: textColor,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: "Search conversations",
+                hintStyle: TextStyle(color: textColor.withOpacity(0.5)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: inputBgColor,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                prefixIcon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, anim) =>
+                      ScaleTransition(scale: anim, child: child),
+                  child: (_isFocused || _searchController.text.isNotEmpty)
+                      ? IconButton(
+                          key: const ValueKey('arrow'),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: textColor,
+                            size: 32,
+                          ),
+                          onPressed: () {
+                            _searchFocus.unfocus();
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : IconButton(
+                          key: const ValueKey('search'),
+                          icon: Icon(Icons.search, size: 32, color: textColor),
+                          onPressed: () {
+                            _searchFocus.requestFocus();
+                          },
                         ),
-                        onPressed: () {
-                          _searchFocus.unfocus();
-                          _searchController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : IconButton(
-                        key: const ValueKey('search'),
-                        icon: Icon(Icons.search, size: 32, color: textColor),
-                        onPressed: () {
-                          _searchFocus.requestFocus();
-                        },
-                      ),
+                ),
               ),
             ),
           ),
-          SizedBox(height: MediaQuery.sizeOf(context).height * 0.76),
           ListTile(
-            leading: Icon(Icons.light_mode, color: textColor),
-            title: Text("Color Scheme", style: TextStyle(color: textColor)),
+            leading: Icon(Icons.add, color: textColor),
+            title: Text("New Chat", style: TextStyle(color: textColor)),
             onTap: () {
-              ThemeDialog.show(
-                context: context,
-                bgColor: inputBgColor,
-                textColor: textColor,
-              );
+              context.read<ChatBloc>().add(const ClearChat());
+              Navigator.pop(context);
             },
           ),
-          // ListTile(
-          //   leading: Icon(Icons.clear_all, color: textColor),
-          //   title: Text("Clear Chat", style: TextStyle(color: textColor)),
-          //   onTap: () {
-          //     context.read<ChatBloc>().add(const ClearChat());
-          //     Navigator.pop(context);
-          //   },
-          // ),
+
+          // Conversations list
+          Expanded(
+            child: BlocBuilder<ChatBloc, ChatState>(
+              builder: (context, chatState) {
+                // Load conversations when drawer opens - for ANY state
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  context.read<ChatBloc>().add(const LoadConversations());
+                });
+
+                List<Conversation> conversations = [];
+                String? selectedConversationId;
+
+                if (chatState is ChatLoaded) {
+                  conversations = chatState.conversations;
+                  selectedConversationId = chatState.selectedConversationId;
+                } else if (chatState is ChatInitial) {
+                  // Initial state - conversations are being loaded
+                  conversations = [];
+                }
+
+                final searchQuery = _searchController.text.toLowerCase();
+
+                // Show loading if we're in initial state (conversations haven't loaded yet)
+                if (chatState is ChatInitial) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // Show empty state if no conversations
+                if (conversations.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.chat_outlined,
+                          size: 64,
+                          color: textColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No conversations yet",
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.6),
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Start a chat to see history here",
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.4),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Filter conversations based on search
+                final filteredConversations = conversations
+                    .where(
+                      (conv) => conv.title.toLowerCase().contains(searchQuery),
+                    )
+                    .toList();
+
+                // Show empty search state
+                if (filteredConversations.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: textColor.withOpacity(0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          "No conversations found",
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.6),
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Try a different search term",
+                          style: TextStyle(
+                            color: textColor.withOpacity(0.4),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  itemCount: filteredConversations.length,
+                  itemBuilder: (context, index) {
+                    final conversation = filteredConversations[index];
+                    return ListTile(
+                      leading: Icon(Icons.chat, color: textColor),
+                      title: Text(
+                        conversation.title,
+                        style: TextStyle(color: textColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        '${conversation.messages.length} messages',
+                        style: TextStyle(color: textColor.withOpacity(0.6)),
+                      ),
+                      trailing: selectedConversationId == conversation.id
+                          ? Icon(Icons.check, color: Colors.green)
+                          : null,
+                      onTap: () {
+                        context.read<ChatBloc>().add(
+                          SelectConversation(conversation.id),
+                        );
+                        Navigator.pop(context);
+                      },
+                      onLongPress: () {
+                        _showRenameDialog(context, conversation);
+                      },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Bottom options
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.light_mode, color: textColor),
+                  title: Text(
+                    "Color Scheme",
+                    style: TextStyle(color: textColor),
+                  ),
+                  onTap: () {
+                    ThemeDialog.show(
+                      context: context,
+                      bgColor: inputBgColor,
+                      textColor: textColor,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  void _sendMessage(BuildContext context) {
+  // Add this method for renaming conversations
+  void _showRenameDialog(BuildContext context, Conversation conversation) {
+    final textColor = getPrimaryTextColor(Theme.of(context).brightness);
+    final controller = TextEditingController(text: conversation.title);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Rename Conversation", style: TextStyle(color: textColor)),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: "Enter new title",
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel", style: TextStyle(color: textColor)),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                context.read<ChatBloc>().add(
+                  UpdateConversationTitle(
+                    conversation.id,
+                    controller.text.trim(),
+                  ),
+                );
+              }
+              Navigator.pop(context);
+            },
+            child: Text("Rename", style: TextStyle(color: Colors.blue)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _sendMessage(BuildContext context) async {
     final text = _chatController.text.trim();
     if (text.isEmpty && _selectedImage == null) return;
 
@@ -455,10 +644,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ? modelState.model
         : 'sonar';
 
+    // Dispatch to BLoC, BLoC handles sending to backend
     context.read<ChatBloc>().add(
       SendMessage(text, currentModel, imageFile: _selectedImage),
     );
 
+    // Clear input
     _chatController.clear();
     setState(() {
       _selectedImage = null;

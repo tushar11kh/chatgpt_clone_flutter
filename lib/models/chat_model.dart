@@ -3,6 +3,7 @@ class ChatMessage {
   final bool isUser;
   final DateTime timestamp;
   final String? imageUrl;
+  final List<String>? images; // supports multiple AI images
   final String modelUsed;
 
   ChatMessage({
@@ -10,6 +11,7 @@ class ChatMessage {
     required this.isUser,
     required this.timestamp,
     this.imageUrl,
+    this.images,
     required this.modelUsed,
   });
 
@@ -18,15 +20,17 @@ class ChatMessage {
         'isUser': isUser,
         'timestamp': timestamp.toIso8601String(),
         'imageUrl': imageUrl,
+        'images': images,
         'modelUsed': modelUsed,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
-        text: json['text'],
-        isUser: json['isUser'],
-        timestamp: DateTime.parse(json['timestamp']),
+        text: json['text'] ?? '',
+        isUser: json['isUser'] ?? false,
+        timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
         imageUrl: json['imageUrl'],
-        modelUsed: json['modelUsed'],
+        images: json['images'] != null ? List<String>.from(json['images']) : null,
+        modelUsed: json['modelUsed'] ?? 'sonar',
       );
 }
 
@@ -45,21 +49,13 @@ class Conversation {
     required this.modelUsed,
   });
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'createdAt': createdAt.toIso8601String(),
-        'messages': messages.map((msg) => msg.toJson()).toList(),
-        'modelUsed': modelUsed,
-      };
-
   factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
-        id: json['id'],
-        title: json['title'],
-        createdAt: DateTime.parse(json['createdAt']),
-        messages: (json['messages'] as List)
-            .map((msg) => ChatMessage.fromJson(msg))
-            .toList(),
-        modelUsed: json['modelUsed'],
-      );
+    id: json['_id'] ?? json['id'] ?? '',
+    title: json['title'] ?? 'Untitled',
+    createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
+    messages: (json['messages'] as List<dynamic>?)
+        ?.map((msg) => ChatMessage.fromJson(msg as Map<String, dynamic>))
+        .toList() ?? [],
+    modelUsed: json['modelUsed'] ?? 'sonar',
+  );
 }
