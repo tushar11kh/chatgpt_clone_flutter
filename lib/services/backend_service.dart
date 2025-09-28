@@ -5,7 +5,8 @@ import 'package:chatgpt_clone/models/chat_model.dart';
 import 'package:chatgpt_clone/services/config_service.dart';
 
 class BackendService {
-  static final String baseUrl = ConfigService.backendUrl; // e.g., http://localhost:3000/api
+  static final String baseUrl =
+      ConfigService.backendUrl; // e.g., http://localhost:3000/api
 
   /// Send a chat message (text + optional image) to backend
   static Future<Map<String, dynamic>> sendMessage({
@@ -22,11 +23,14 @@ class BackendService {
       // Add fields
       request.fields['text'] = text;
       request.fields['modelUsed'] = model;
-      if (conversationId != null) request.fields['conversationId'] = conversationId;
+      if (conversationId != null)
+        request.fields['conversationId'] = conversationId;
 
       // Optional image
       if (imageFile != null) {
-        request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+        request.files.add(
+          await http.MultipartFile.fromPath('image', imageFile.path),
+        );
       }
 
       // Send request
@@ -69,9 +73,11 @@ class BackendService {
   }) async {
     try {
       var uri = Uri.parse('$baseUrl/conversation');
-      final response = await http.post(uri,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'title': title, 'messages': [], 'modelUsed': model}));
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'title': title, 'messages': [], 'modelUsed': model}),
+      );
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body)['conversation'];
@@ -82,25 +88,38 @@ class BackendService {
       throw Exception('Failed to create conversation: $e');
     }
   }
-  
+
   // Add to backend_service.dart
-static Future<void> updateConversationTitle({
-  required String conversationId,
-  required String newTitle,
-}) async {
-  try {
-    var uri = Uri.parse('$baseUrl/conversation/$conversationId');
-    final response = await http.patch(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'title': newTitle}),
-    );
-    
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update title: ${response.body}');
+  static Future<void> updateConversationTitle({
+    required String conversationId,
+    required String newTitle,
+  }) async {
+    try {
+      var uri = Uri.parse('$baseUrl/conversation/$conversationId');
+      final response = await http.patch(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'title': newTitle}),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to update title: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to update conversation title: $e');
     }
-  } catch (e) {
-    throw Exception('Failed to update conversation title: $e');
   }
-}
+
+  static Future<void> deleteConversation(String conversationId) async {
+    try {
+      var uri = Uri.parse('$baseUrl/conversation/$conversationId');
+      final response = await http.delete(uri);
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete conversation: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to delete conversation: $e');
+    }
+  }
 }

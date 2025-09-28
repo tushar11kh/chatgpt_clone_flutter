@@ -12,6 +12,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<LoadConversations>(_onLoadConversations);
     on<SelectConversation>(_onSelectConversation);
     on<UpdateConversationTitle>(_onUpdateConversationTitle);
+    on<DeleteConversation>(_onDeleteConversation);
+
   }
 
   Future<void> _onSendMessage(
@@ -194,4 +196,24 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       print('Failed to update conversation title: $e');
     }
   }
+
+  Future<void> _onDeleteConversation(DeleteConversation event, Emitter<ChatState> emit) async {
+  try {
+    await BackendService.deleteConversation(event.conversationId);
+    
+    // Check if we're deleting the current conversation
+    final currentState = state;
+    if (currentState is ChatLoaded && currentState.conversationId == event.conversationId) {
+      // Clear the current chat
+      emit(ChatInitial());
+    }
+    
+    // Always reload conversations list
+    add(const LoadConversations());
+  } catch (e) {
+    print('Failed to delete conversation: $e');
+  }
+}
+
+
 }

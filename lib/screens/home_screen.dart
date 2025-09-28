@@ -26,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
   final FocusNode _searchFocus = FocusNode();
 
+  String? _editingConversationId;
+  TextEditingController? _renameController;
+
   bool _isFocused = false;
   File? _selectedImage;
 
@@ -44,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _chatController.dispose();
     _searchController.dispose();
     _searchFocus.dispose();
+    _renameController?.dispose();
     super.dispose();
   }
 
@@ -175,90 +179,177 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                           ),
+                        // Chat messages - REPLACE THIS ENTIRE SECTION
                         Expanded(
-                          child: ListView.builder(
-                            reverse: true,
-                            padding: const EdgeInsets.all(12),
-                            itemCount: messages.length,
-                            itemBuilder: (context, index) {
-                              final msg = messages[messages.length - 1 - index];
-
-                              if (msg.isUser) {
-                                // User message - show in bubble
-                                return Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                      horizontal: 12,
-                                    ),
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: chatBgColor,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.end,
-                                      children: [
-                                        if (msg.imageUrl != null)
-                                          Image.asset(
-                                            'assets/placeholder.jpg',
-                                            height: 50,
-                                            width: 50,
-                                            fit: BoxFit.cover,
-                                          ),
-                                        Text(
-                                          msg.text,
-                                          style: TextStyle(color: textColor),
-                                        ),
-                                        Text(
-                                          'Model: ${msg.modelUsed}',
-                                          style: TextStyle(
-                                            color: textColor.withOpacity(0.6),
-                                            fontSize: 10,
-                                          ),
-                                        ),
-                                      ],
+                          child: BlocBuilder<ChatBloc, ChatState>(
+                            builder: (context, chatState) {
+                              if (chatState is ChatInitial) {
+                                // Show welcome message for initial state
+                                return Center(
+                                  child: Text(
+                                    "What can I help with?",
+                                    style: TextStyle(
+                                      fontSize: 25,
+                                      fontWeight: FontWeight.bold,
+                                      color: textColor,
                                     ),
                                   ),
                                 );
-                              } else {
-                                // AI message - show as plain text (no bubble)
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8,
-                                    horizontal: 12,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        msg.text,
-                                        style: TextStyle(color: textColor),
+                              } else if (chatState is ChatLoaded) {
+                                final messages = chatState.messages;
+
+                                // Show welcome message even in ChatLoaded if no messages
+                                if (messages.isEmpty && !chatState.isLoading) {
+                                  return Center(
+                                    child: Text(
+                                      "What can I help with?",
+                                      style: TextStyle(
+                                        fontSize: 25,
+                                        fontWeight: FontWeight.bold,
+                                        color: textColor,
                                       ),
-                                      Text(
-                                        'Model: ${msg.modelUsed}',
-                                        style: TextStyle(
-                                          color: textColor.withOpacity(0.6),
-                                          fontSize: 10,
+                                    ),
+                                  );
+                                }
+
+                                return Column(
+                                  children: [
+                                    if (_selectedImage != null)
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Stack(
+                                          children: [
+                                            Image.file(
+                                              _selectedImage!,
+                                              height: 100,
+                                              width: 100,
+                                              fit: BoxFit.cover,
+                                            ),
+                                            Positioned(
+                                              top: 0,
+                                              right: 0,
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.close,
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: _removeImage,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ],
+                                    Expanded(
+                                      child: ListView.builder(
+                                        reverse: true,
+                                        padding: const EdgeInsets.all(12),
+                                        itemCount: messages.length,
+                                        itemBuilder: (context, index) {
+                                          final msg =
+                                              messages[messages.length -
+                                                  1 -
+                                                  index];
+
+                                          if (msg.isUser) {
+                                            // User message - show in bubble
+                                            return Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 8,
+                                                      horizontal: 12,
+                                                    ),
+                                                margin:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 4,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: chatBgColor,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    if (msg.imageUrl != null)
+                                                      Image.asset(
+                                                        'assets/placeholder.jpg',
+                                                        height: 50,
+                                                        width: 50,
+                                                        fit: BoxFit.cover,
+                                                      ),
+                                                    Text(
+                                                      msg.text,
+                                                      style: TextStyle(
+                                                        color: textColor,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      'Model: ${msg.modelUsed}',
+                                                      style: TextStyle(
+                                                        color: textColor
+                                                            .withOpacity(0.6),
+                                                        fontSize: 10,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            // AI message - show as plain text (no bubble)
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 8,
+                                                    horizontal: 12,
+                                                  ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    msg.text,
+                                                    style: TextStyle(
+                                                      color: textColor,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    'Model: ${msg.modelUsed}',
+                                                    style: TextStyle(
+                                                      color: textColor
+                                                          .withOpacity(0.6),
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    if (chatState.isLoading)
+                                      const Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                  ],
+                                );
+                              } else if (chatState is ChatError) {
+                                return Center(
+                                  child: Text(
+                                    "Error: ${chatState.error}",
+                                    style: const TextStyle(color: Colors.red),
                                   ),
                                 );
                               }
+                              return const SizedBox.shrink();
                             },
                           ),
                         ),
-                        if (chatState.isLoading)
-                          const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: CircularProgressIndicator(),
-                          ),
                       ],
                     );
                   } else if (chatState is ChatError) {
@@ -430,11 +521,22 @@ class _HomeScreenState extends State<HomeScreen> {
             leading: Icon(Icons.add, color: textColor),
             title: Text("New Chat", style: TextStyle(color: textColor)),
             onTap: () {
+              // Clear local UI state
+              _chatController.clear();
+              setState(() {
+                _selectedImage = null;
+                _editingConversationId = null;
+                _renameController?.dispose();
+                _renameController = null;
+              });
+
+              // Clear the chat state
               context.read<ChatBloc>().add(const ClearChat());
               Navigator.pop(context);
             },
           ),
 
+          // Conversations list
           // Conversations list
           Expanded(
             child: BlocBuilder<ChatBloc, ChatState>(
@@ -537,29 +639,57 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: filteredConversations.length,
                   itemBuilder: (context, index) {
                     final conversation = filteredConversations[index];
+                    final isEditing = _editingConversationId == conversation.id;
+
                     return ListTile(
-                      leading: Icon(Icons.chat, color: textColor),
-                      title: Text(
-                        conversation.title,
-                        style: TextStyle(color: textColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        '${conversation.messages.length} messages',
-                        style: TextStyle(color: textColor.withOpacity(0.6)),
-                      ),
-                      trailing: selectedConversationId == conversation.id
-                          ? Icon(Icons.check, color: Colors.green)
-                          : null,
+                      title: isEditing
+                          ? TextField(
+                              controller: _renameController,
+                              style: TextStyle(color: textColor),
+                              decoration: InputDecoration(
+                                hintText: "Conversation title",
+                                hintStyle: TextStyle(
+                                  color: textColor.withOpacity(0.5),
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              autofocus: true,
+                              onSubmitted: (newTitle) {
+                                _saveRename(context, conversation, newTitle);
+                              },
+                            )
+                          : Text(
+                              conversation.title,
+                              style: TextStyle(color: textColor),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                      subtitle: isEditing
+                          ? IconButton(
+                              icon: Icon(Icons.check, color: Colors.green),
+                              onPressed: () {
+                                if (_renameController != null) {
+                                  _saveRename(
+                                    context,
+                                    conversation,
+                                    _renameController!.text,
+                                  );
+                                }
+                              },
+                            )
+                          : (selectedConversationId == conversation.id
+                                ? Icon(Icons.check, color: Colors.green)
+                                : null),
                       onTap: () {
+                        if (isEditing) return; // Don't select if editing
                         context.read<ChatBloc>().add(
                           SelectConversation(conversation.id),
                         );
                         Navigator.pop(context);
                       },
                       onLongPress: () {
-                        _showRenameDialog(context, conversation);
+                        _showConversationOptions(context, conversation);
                       },
                     );
                   },
@@ -593,6 +723,103 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  void _showConversationOptions(
+    BuildContext context,
+    Conversation conversation,
+  ) {
+    final textColor = getPrimaryTextColor(Theme.of(context).brightness);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: getBackgroundColor(Theme.of(context).brightness),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.edit, color: textColor),
+              title: Text("Rename", style: TextStyle(color: textColor)),
+              onTap: () {
+                Navigator.pop(context);
+                _startEditing(conversation);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete, color: Colors.red),
+              title: Text("Delete", style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteDialog(context, conversation);
+              },
+            ),
+            const SizedBox(height: 8),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: getInputBackgroundColor(
+                    Theme.of(context).brightness,
+                  ),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: Text("Cancel", style: TextStyle(color: textColor)),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, Conversation conversation) {
+    final textColor = getPrimaryTextColor(Theme.of(context).brightness);
+    final bgColor = getBackgroundColor(Theme.of(context).brightness);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: bgColor,
+        title: Text("Delete Conversation", style: TextStyle(color: textColor)),
+        content: Text(
+          "Are you sure you want to delete '${conversation.title}'? This action cannot be undone.",
+          style: TextStyle(color: textColor.withOpacity(0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Cancel", style: TextStyle(color: textColor)),
+          ),
+          TextButton(
+            onPressed: () {
+              _deleteConversation(context, conversation);
+              Navigator.pop(context);
+            },
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteConversation(BuildContext context, Conversation conversation) {
+    // TODO: Implement delete conversation in BackendService and ChatBloc
+    context.read<ChatBloc>().add(DeleteConversation(conversation.id));
+    // Reload conversations to reflect the deletion
+    context.read<ChatBloc>().add(const LoadConversations());
+    Navigator.pop(context); // This closes the drawer
+    setState(() {});
   }
 
   // Add this method for renaming conversations
@@ -653,6 +880,40 @@ class _HomeScreenState extends State<HomeScreen> {
     _chatController.clear();
     setState(() {
       _selectedImage = null;
+    });
+  }
+
+  void _startEditing(Conversation conversation) {
+    setState(() {
+      _editingConversationId = conversation.id;
+      _renameController = TextEditingController(text: conversation.title);
+
+      // Move cursor to the end
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _renameController?.selection = TextSelection.fromPosition(
+          TextPosition(offset: _renameController!.text.length),
+        );
+      });
+    });
+  }
+
+  void _saveRename(
+    BuildContext context,
+    Conversation conversation,
+    String newTitle,
+  ) {
+    final trimmedTitle = newTitle.trim();
+    if (trimmedTitle.isNotEmpty && trimmedTitle != conversation.title) {
+      context.read<ChatBloc>().add(
+        UpdateConversationTitle(conversation.id, trimmedTitle),
+      );
+    }
+
+    // Exit editing mode
+    setState(() {
+      _editingConversationId = null;
+      _renameController?.dispose();
+      _renameController = null;
     });
   }
 }

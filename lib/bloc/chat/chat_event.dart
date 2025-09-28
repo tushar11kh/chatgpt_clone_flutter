@@ -59,3 +59,12 @@ class UpdateConversationTitle extends ChatEvent {
   @override
   List<Object?> get props => [conversationId, newTitle];
 }
+
+class DeleteConversation extends ChatEvent {
+  final String conversationId;
+  
+  const DeleteConversation(this.conversationId);
+
+  @override
+  List<Object?> get props => [conversationId];
+}
