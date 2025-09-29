@@ -87,7 +87,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   } catch (e) {
     // On error, add AI error message
     updatedMessages.add(ChatMessage(
-      text: 'Failed to send message: ${e.toString()}',
+      text: 'Failed to send message. Please try again.',
       isUser: false,
       timestamp: DateTime.now(),
       modelUsed: event.model,

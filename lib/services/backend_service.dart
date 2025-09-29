@@ -1,87 +1,91 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // Add this import
 import 'package:http/http.dart' as http;
 import 'package:chatgpt_clone/models/chat_model.dart';
 import 'package:chatgpt_clone/services/config_service.dart';
 
 class BackendService {
-  static final String baseUrl =
-      ConfigService.backendUrl; // e.g., http://localhost:3000/api
+  static final String baseUrl = ConfigService.backendUrl;
 
   /// Send a chat message (text + optional image) to backend
   static Future<Map<String, dynamic>> sendMessage({
-  required String text,
-  required String model,
-  required List<ChatMessage> history,
-  String? conversationId,
-  File? imageFile,
-}) async {
-  try {
-    var uri = Uri.parse('$baseUrl/chat');
-    var request = http.MultipartRequest('POST', uri);
+    required String text,
+    required String model,
+    required List<ChatMessage> history,
+    String? conversationId,
+    File? imageFile,
+  }) async {
+    try {
+      var uri = Uri.parse('$baseUrl/chat');
+      var request = http.MultipartRequest('POST', uri);
 
-    // Add fields
-    request.fields['text'] = text;
-    request.fields['modelUsed'] = model;
-    if (conversationId != null) request.fields['conversationId'] = conversationId;
+      // Add fields
+      request.fields['text'] = text;
+      request.fields['modelUsed'] = model;
+      if (conversationId != null) request.fields['conversationId'] = conversationId;
 
-    // Optional image
-    if (imageFile != null) {
-      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-    }
-
-    // Send request
-    var streamedResponse = await request.send();
-    var response = await http.Response.fromStream(streamedResponse);
-
-    // Check if response is JSON
-    final contentType = response.headers['content-type'] ?? '';
-    if (!contentType.contains('application/json')) {
-      throw Exception('Server error. Please try again later.');
-    }
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return {
-        'conversationId': data['conversationId'],
-        'messages': data['messages'],
-      };
-    } else {
-      // Try to parse error message from JSON
-      try {
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['message'] ?? errorData['error'] ?? 'Backend error';
-        throw Exception(errorMessage);
-      } catch (e) {
-        // If not JSON, throw generic error
-        throw Exception('Failed to send message. Please try again later.');
+      // Optional image
+      if (imageFile != null) {
+        request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
       }
+
+      // Send request
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      // Check if response is JSON
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.contains('application/json')) {
+        debugPrint("Non-JSON response: ${response.body}");
+        throw Exception('Something went wrong. Please try again.');
+      }
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {
+          'conversationId': data['conversationId'],
+          'messages': data['messages'],
+        };
+      } else {
+        // Try to parse error message
+        try {
+          final errorData = jsonDecode(response.body);
+          final errorMessage = errorData['message'] ?? errorData['error'];
+          debugPrint("Backend error: $errorMessage");
+          throw Exception('Failed to send message. Please try again.');
+        } catch (_) {
+          debugPrint("Invalid error response: ${response.body}");
+          throw Exception('Failed to send message. Please try again.');
+        }
+      }
+    } catch (e, stack) {
+      debugPrint("sendMessage Exception: $e");
+      debugPrint(stack.toString());
+      throw Exception('Failed to send message. Please try again.');
     }
-  } catch (e) {
-    // Re-throw with user-friendly message
-    if (e.toString().contains('HTML') || e.toString().contains('DOCTYPE')) {
-      throw Exception('Failed to send message. Please try again later.');
-    }
-    throw Exception('Failed to send message. Please try again later.');
   }
-}
 
   /// Fetch all past conversations
   static Future<List<dynamic>> getAllConversations() async {
     try {
       var uri = Uri.parse('$baseUrl/conversations');
       final response = await http.get(uri);
+      
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Failed to fetch conversations: ${response.body}');
+        debugPrint("getAllConversations error ${response.statusCode}: ${response.body}");
+        throw Exception('Failed to load conversations. Please try again later.');
       }
-    } catch (e) {
-      throw Exception('Failed to fetch conversations: $e');
+    } catch (e, stack) {
+      debugPrint("getAllConversations Exception: $e");
+      debugPrint(stack.toString());
+      throw Exception('Failed to load conversations. Please try again later.');
     }
   }
 
-  /// Create new conversation (optional)
+  /// Create new conversation
   static Future<Map<String, dynamic>> createConversation({
     required String title,
     required String model,
@@ -97,14 +101,16 @@ class BackendService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body)['conversation'];
       } else {
-        throw Exception('Failed to create conversation: ${response.body}');
+        debugPrint("createConversation error ${response.statusCode}: ${response.body}");
+        throw Exception('Failed to create conversation. Please try again later.');
       }
-    } catch (e) {
-      throw Exception('Failed to create conversation: $e');
+    } catch (e, stack) {
+      debugPrint("createConversation Exception: $e");
+      debugPrint(stack.toString());
+      throw Exception('Failed to create conversation. Please try again later.');
     }
   }
 
-  // Add to backend_service.dart
   static Future<void> updateConversationTitle({
     required String conversationId,
     required String newTitle,
@@ -118,10 +124,13 @@ class BackendService {
       );
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to update title: ${response.body}');
+        debugPrint("updateConversationTitle error ${response.statusCode}: ${response.body}");
+        throw Exception('Failed to update title. Please try again later.');
       }
-    } catch (e) {
-      throw Exception('Failed to update conversation title: $e');
+    } catch (e, stack) {
+      debugPrint("updateConversationTitle Exception: $e");
+      debugPrint(stack.toString());
+      throw Exception('Failed to update conversation title. Please try again later.');
     }
   }
 
@@ -131,10 +140,13 @@ class BackendService {
       final response = await http.delete(uri);
 
       if (response.statusCode != 200) {
-        throw Exception('Failed to delete conversation: ${response.body}');
+        debugPrint("deleteConversation error ${response.statusCode}: ${response.body}");
+        throw Exception('Failed to delete conversation. Please try again later.');
       }
-    } catch (e) {
-      throw Exception('Failed to delete conversation: $e');
+    } catch (e, stack) {
+      debugPrint("deleteConversation Exception: $e");
+      debugPrint(stack.toString());
+      throw Exception('Failed to delete conversation. Please try again later.');
     }
   }
 }

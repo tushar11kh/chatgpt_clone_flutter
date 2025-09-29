@@ -1,5 +1,6 @@
 import 'package:chatgpt_clone/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatBubble extends StatelessWidget {
   final String text;
@@ -95,10 +96,22 @@ class ChatBubble extends StatelessWidget {
                         height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : Text(
+                    : isUser
+                     ? Text(
                         text,
                         style: TextStyle(color: textColor, fontSize: 16),
-                      ),
+                      )
+                      : MarkdownBody(  // AI messages use markdown
+                data: text,
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(color: textColor, fontSize: 16),
+                  strong: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
               ),
             // Model information text
             Padding(
