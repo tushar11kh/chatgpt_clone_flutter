@@ -3,7 +3,6 @@
 ## 📌 Project Overview
 A Flutter-based AI chat application that allows users to interact with AI models via text and images. The app features multi-modal messaging, conversation management, markdown rendering, and dynamic theming, built with clean architecture and robust state management.
 
----
 
 ## 🚀 Tech Stack
 
@@ -13,7 +12,6 @@ A Flutter-based AI chat application that allows users to interact with AI models
 - **Architecture Patterns:** Clean Architecture, Repository Pattern, Singleton Pattern for services  
 - **UI/UX:** Responsive design, markdown support
 
----
 
 ## 🔄 State Management & Data Flow
 
@@ -27,7 +25,6 @@ A Flutter-based AI chat application that allows users to interact with AI models
 - `ThemeBloc` – Handles light/dark mode  
 - `ModelBloc` – Manages AI model selection and persistence  
 
----
 
 ## 📱 Features
 
@@ -49,7 +46,6 @@ A Flutter-based AI chat application that allows users to interact with AI models
   - Smooth transitions and animations  
   - Responsive layout for mobile devices  
 
----
 
 ## 🔌 Backend Integration
 
@@ -58,9 +54,6 @@ A Flutter-based AI chat application that allows users to interact with AI models
   - Sending messages with optional images  
   - Conversation CRUD operations  
   - AI model selection & response handling  
-
----
-
 
 ---
 
