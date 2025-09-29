@@ -16,89 +16,86 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   }
 
-  Future<void> _onSendMessage(
-    SendMessage event,
-    Emitter<ChatState> emit,
-  ) async {
-    // Get current state messages and conversationId
-    List<ChatMessage> updatedMessages = [];
-    String? conversationId;
+  Future<void> _onSendMessage(SendMessage event, Emitter<ChatState> emit) async {
+  // Get current state messages and conversationId
+  List<ChatMessage> updatedMessages = [];
+  String? conversationId;
 
-    if (state is ChatLoaded) {
-      final current = state as ChatLoaded;
-      updatedMessages = List.from(current.messages);
-      conversationId = current.conversationId;
-    }
-
-    // Add user message locally for instant UI feedback
-    final userMessage = ChatMessage(
-      text: event.message,
-      isUser: true,
-      timestamp: DateTime.now(),
-      imageUrl: event.imageFile != null ? 'local_image' : null,
-      images: null,
-      modelUsed: event.model,
-    );
-    updatedMessages.add(userMessage);
-
-    // Emit loading state
-    emit(
-      ChatLoaded(
-        updatedMessages,
-        isLoading: true,
-        conversationId: conversationId,
-      ),
-    );
-
-    try {
-      // Send message to backend
-      final response = await BackendService.sendMessage(
-        text: event.message,
-        model: event.model,
-        conversationId: conversationId,
-        imageFile: event.imageFile,
-        history: updatedMessages,
-      );
-
-      final newConversationId = response['conversationId'] as String;
-      final messagesJson = response['messages'] as List<dynamic>;
-
-      // Convert dynamic to ChatMessage
-      final aiMessages = messagesJson
-          .map((msg) => ChatMessage.fromJson(msg as Map<String, dynamic>))
-          .where((msg) => !msg.isUser) // ⚡ Only append AI messages
-          .toList();
-
-      updatedMessages.addAll(aiMessages);
-
-      // Emit final loaded state
-      emit(
-        ChatLoaded(
-          updatedMessages,
-          isLoading: false,
-          conversationId: newConversationId,
-        ),
-      );
-    } catch (e) {
-      // On error, add AI error message
-      updatedMessages.add(
-        ChatMessage(
-          text: 'Failed to send message: ${e.toString()}',
-          isUser: false,
-          timestamp: DateTime.now(),
-          modelUsed: event.model,
-        ),
-      );
-
-      emit(
-        ChatLoaded(
-          updatedMessages,
-          isLoading: false,
-          conversationId: conversationId,
-        ),
-      );
-    }
+  if (state is ChatLoaded) {
+    final current = state as ChatLoaded;
+    updatedMessages = List.from(current.messages);
+    conversationId = current.conversationId;
   }
+
+  // Create user message with temporary image URL
+  final userMessage = ChatMessage(
+    text: event.message,
+    isUser: true,
+    timestamp: DateTime.now(),
+    imageUrl: event.imageFile != null ? 'local_image' : null,
+    images: null,
+    modelUsed: event.model,
+  );
+  updatedMessages.add(userMessage);
+
+  // Emit loading state
+  emit(ChatLoaded(updatedMessages, isLoading: true, conversationId: conversationId));
+
+  try {
+    // Send message to backend
+    final response = await BackendService.sendMessage(
+      text: event.message,
+      model: event.model,
+      conversationId: conversationId,
+      imageFile: event.imageFile,
+      history: updatedMessages,
+    );
+
+    final newConversationId = response['conversationId'] as String;
+    final messagesJson = response['messages'] as List<dynamic>;
+
+    // Convert dynamic to ChatMessage
+    final backendMessages = messagesJson
+        .map((msg) => ChatMessage.fromJson(msg as Map<String, dynamic>))
+        .toList();
+
+    // Find the user message in backend response and update our local message
+    final backendUserMessage = backendMessages.firstWhere(
+      (msg) => msg.isUser,
+      orElse: () => userMessage,
+    );
+
+    // Update the user message with the actual image URL from backend
+    final updatedUserMessage = ChatMessage(
+      text: userMessage.text,
+      isUser: true,
+      timestamp: userMessage.timestamp,
+      imageUrl: backendUserMessage.imageUrl, // Use the actual URL from backend
+      images: backendUserMessage.images,
+      modelUsed: userMessage.modelUsed,
+    );
+
+    // Replace the temporary user message with the updated one
+    updatedMessages[updatedMessages.length - 1] = updatedUserMessage;
+
+    // Add AI messages (filter out user messages since we already updated ours)
+    final aiMessages = backendMessages.where((msg) => !msg.isUser).toList();
+    updatedMessages.addAll(aiMessages);
+
+    // Emit final loaded state
+    emit(ChatLoaded(updatedMessages, isLoading: false, conversationId: newConversationId));
+  } catch (e) {
+    // On error, add AI error message
+    updatedMessages.add(ChatMessage(
+      text: 'Failed to send message: ${e.toString()}',
+      isUser: false,
+      timestamp: DateTime.now(),
+      modelUsed: event.model,
+    ));
+
+    emit(ChatLoaded(updatedMessages, isLoading: false, conversationId: conversationId));
+  }
+}
 
   Future<void> _onUpdateChat(UpdateChat event, Emitter<ChatState> emit) async {
     emit(

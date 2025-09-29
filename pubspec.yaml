@@ -42,6 +42,7 @@ dependencies:
   shared_preferences: ^2.5.3
   perplexity_dart: ^1.0.5
   flutter_dotenv: ^6.0.0
+  cached_network_image: ^3.4.1
 
 flutter_icons:
   android: true

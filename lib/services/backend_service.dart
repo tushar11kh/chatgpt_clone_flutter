@@ -10,46 +10,61 @@ class BackendService {
 
   /// Send a chat message (text + optional image) to backend
   static Future<Map<String, dynamic>> sendMessage({
-    required String text,
-    required String model,
-    required List<ChatMessage> history,
-    String? conversationId,
-    File? imageFile,
-  }) async {
-    try {
-      var uri = Uri.parse('$baseUrl/chat');
-      var request = http.MultipartRequest('POST', uri);
+  required String text,
+  required String model,
+  required List<ChatMessage> history,
+  String? conversationId,
+  File? imageFile,
+}) async {
+  try {
+    var uri = Uri.parse('$baseUrl/chat');
+    var request = http.MultipartRequest('POST', uri);
 
-      // Add fields
-      request.fields['text'] = text;
-      request.fields['modelUsed'] = model;
-      if (conversationId != null)
-        request.fields['conversationId'] = conversationId;
+    // Add fields
+    request.fields['text'] = text;
+    request.fields['modelUsed'] = model;
+    if (conversationId != null) request.fields['conversationId'] = conversationId;
 
-      // Optional image
-      if (imageFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath('image', imageFile.path),
-        );
-      }
-
-      // Send request
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'conversationId': data['conversationId'],
-          'messages': data['messages'],
-        };
-      } else {
-        throw Exception('Backend error: ${response.body}');
-      }
-    } catch (e) {
-      throw Exception('Failed to send message: $e');
+    // Optional image
+    if (imageFile != null) {
+      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
     }
+
+    // Send request
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    // Check if response is JSON
+    final contentType = response.headers['content-type'] ?? '';
+    if (!contentType.contains('application/json')) {
+      throw Exception('Server error. Please try again later.');
+    }
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return {
+        'conversationId': data['conversationId'],
+        'messages': data['messages'],
+      };
+    } else {
+      // Try to parse error message from JSON
+      try {
+        final errorData = jsonDecode(response.body);
+        final errorMessage = errorData['message'] ?? errorData['error'] ?? 'Backend error';
+        throw Exception(errorMessage);
+      } catch (e) {
+        // If not JSON, throw generic error
+        throw Exception('Failed to send message. Please try again later.');
+      }
+    }
+  } catch (e) {
+    // Re-throw with user-friendly message
+    if (e.toString().contains('HTML') || e.toString().contains('DOCTYPE')) {
+      throw Exception('Failed to send message. Please try again later.');
+    }
+    throw Exception('Failed to send message. Please try again later.');
   }
+}
 
   /// Fetch all past conversations
   static Future<List<dynamic>> getAllConversations() async {
